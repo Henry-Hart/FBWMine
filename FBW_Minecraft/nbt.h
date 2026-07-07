@@ -39,6 +39,7 @@
 #define MODE_PALETTE 3
 #define MODE_NORMAL 4
 
+#define DETECT_LEVEL ctx->nbt[5] != 'v' // for older minecraft versions
 #define DETECT_INCOMPLETE_STATUS ctx->nbt[14] != 'l'
 #define DETECT_STATUS ctx->nbt[2] == 'S' // not needed
 #define DETECT_SECTIONS ctx->nbt[3] == 'e'
@@ -51,6 +52,10 @@
 #define REGION_STATUS_READ_BLOCKED 3
 #define REGION_STATUS_HOLLOW 4
 
+#define CHUNK_STATUS_OK 0
+#define CHUNK_STATUS_INCOMPLETE 1
+#define CHUNK_STATUS_OLD 2
+
 typedef struct _ChunkContext { // chunk context
 	BYTE* nbt;
 	DWORD chunk_i;
@@ -60,7 +65,7 @@ typedef struct _ChunkContext { // chunk context
 	BYTE* palette_secondary_translation;
 	BYTE* region_data;
 	DWORD covered_subchunks; // for detecting empty sections (from naughty worldgen tools)
-	BOOL incomplete;
+	int status;
 } ChunkContext, * PChunkContext;
 
 typedef struct _SubchunkContext { // subchunk context
@@ -210,6 +215,7 @@ void nbt_compound_track(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_
 
 			if (saved_mode == MODE_SECTION && DETECT_Y) sctx->subchunk_i = ctx->nbt[3];
 
+
 			ctx->nbt += 2 + step + 1;
 			break;
 		}
@@ -269,6 +275,9 @@ void nbt_compound_track(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_
 		case NBT_Compound: {
 			DWORD step = get_2_bytes(ctx->nbt, 0);
 
+			// detect older region versions (pre-1.13)
+			if (saved_mode == MODE_ROOT && DETECT_LEVEL) ctx->status |= CHUNK_STATUS_OLD;
+
 			DWORD inp_mode = mode;
 			if (saved_mode == MODE_SECTION && DETECT_BLOCK_STATES) inp_mode = MODE_BLOCK_STATES;
 			ctx->nbt += 2 + step;
@@ -292,7 +301,7 @@ void nbt_compound_track(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_
 			else if (saved_mode == MODE_ROOT && detected_status){
 
 				// detect incomplete chunks
-				ctx->incomplete = DETECT_INCOMPLETE_STATUS;
+				if (DETECT_INCOMPLETE_STATUS) ctx->status |= CHUNK_STATUS_INCOMPLETE;
 			}
 
 			ctx->nbt += 2 + step;
@@ -541,5 +550,15 @@ void get_chunks(BYTE* data) {
 		// big endian
 		DWORD offset = get_3_bytes(data, i * 4);
 
+	}
+}
+
+void invalidate_chunk(PChunkContext ctx, int error_code) {
+
+	// TODO: do more efficiently (just set first and second bytes)
+	BYTE* chunk_base = fill_empty_chunk(ctx, 0);
+	for (int i = 0; i < MAX_SUBCHUNKS; i++) {
+
+		chunk_base[i * BLOCKS_PER_SUBCHUNK + 1] = error_code;
 	}
 }

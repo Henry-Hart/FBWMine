@@ -595,26 +595,23 @@ void load_region(PRegionAllocContext rctx, BYTE* base, char** global_palette,
 int get_chunk(BYTE* data, BYTE* palette_map, int i, PRegionAllocContext rctx, 
 	PChunkContext ctx, BYTE air_id) {
 
+	// TODO: convert back to DWORD lol
 	LONG sec_offset = (LONG)get_3_bytes(data, i * 4); // TODO: make DWORDS longs
 	DWORD sec_size = data[i * 4 + 3];
 
 	if (sec_offset == 0 || sec_size == 0) {
-		//printf("Chunk is empty! %d\n", i);
 
 		// fill empty chunk with default-valued block
 		ctx->chunk_i = i;
-		
-		// the chunk literally doesn't exist, so it's invalid
-		BYTE* chunk_base = fill_empty_chunk(ctx, 0);
-		for (int i = 0; i < MAX_SUBCHUNKS; i++) {
 
-			// type of invalid subchunk (subchunk in non-existent chunk in existent region)
-			chunk_base[i * BLOCKS_PER_SUBCHUNK + 1] = 4;
-		}
+		// 4 = subchunk in non-existent chunk in existent region
+		invalidate_chunk(ctx, 4);
+
 		return 0;
 	}
 
-	//printf("i: %d, sec_offset: %d\n", i, sec_offset);
+	// this assumes the chunk is within the loaded file bounds
+	// TODO: verify stuff is within bounds
 	BYTE* chunk = data + sec_offset * SECTOR_SIZE;
 	DWORD size = get_4_bytes(chunk, 0);
 	DWORD compression_type = chunk[4];
@@ -626,6 +623,7 @@ int get_chunk(BYTE* data, BYTE* palette_map, int i, PRegionAllocContext rctx,
 
 	if (size == 0 || size == 1) {
 		printf("Chunk has no data!\n");
+		// TODO: return 0 ???
 	}
 
 	DWORD nbt_max_size = 0x100000;
@@ -642,7 +640,7 @@ int get_chunk(BYTE* data, BYTE* palette_map, int i, PRegionAllocContext rctx,
 	ctx->nbt = (BYTE*)nbt + 3;
 	ctx->chunk_i = i;
 	ctx->covered_subchunks = 0;
-	ctx->incomplete = 0;
+	ctx->status = CHUNK_STATUS_OK;
 
 	//printf("Chunk index: %L, NBT: %p\n", i, ctx->nbt-3);
 
@@ -656,17 +654,17 @@ int get_chunk(BYTE* data, BYTE* palette_map, int i, PRegionAllocContext rctx,
 		return 0;
 	}
 
+	if (ctx->status & CHUNK_STATUS_OLD) {
+
+		// 7 = pre-1.13 chunk
+		invalidate_chunk(ctx, 7);
+		return 0;
+	}
 	// check if chunk status is not full i.e. incomplete
-	if (ctx->incomplete) {
+	else if (ctx->status & CHUNK_STATUS_INCOMPLETE) {
 
-		//printf("Incomplete chunk!\n");
-
-		BYTE* chunk_base = fill_empty_chunk(ctx, 0);
-		for (int i = 0; i < MAX_SUBCHUNKS; i++) {
-
-			// type of invalid subchunk (subchunk in non-existent chunk in existent region)
-			chunk_base[i * BLOCKS_PER_SUBCHUNK + 1] = 5;
-		}
+		// 5 = subchunk in non-existent chunk in existent region
+		invalidate_chunk(ctx, 5);
 		return 0;
 	}
 

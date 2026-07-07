@@ -67,6 +67,13 @@ int get_config(PConfigData conf) {
 		return CONFIG_OTHER_ERROR;
 	}
 
+	// set base directory to be current directory so local paths always work
+	local_file_path(path, length, "");
+	if (!SetCurrentDirectoryA(path)) {
+		printf("[Config] SetCurrentDirectoryA failed (%L)", GetLastError());
+		return CONFIG_OTHER_ERROR;
+	}
+
 	local_file_path(path, length, "blocks.txt");
 
 	DWORD size;
@@ -484,6 +491,14 @@ BOOL get_good_config(PConfigData conf) {
 
 		// for now, you can't configure mod_name from the terminal interface
 		strcpy(mod_name, "ANStar_fbwmine");
+
+		// save mod_name
+		char* saved_mod_name = malloc(strlen(mod_name)+1);
+		if (!saved_mod_name) {
+			printf("[CONFIG] malloc failed!\n");
+		}
+		strcpy(saved_mod_name, mod_name);
+		conf->mod_name = saved_mod_name;
 	}
 	else {
 		printf("[*] Loading saved settings...\n");
