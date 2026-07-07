@@ -1,0 +1,1 @@
+Adds a block which contains an entire Minecraft world.

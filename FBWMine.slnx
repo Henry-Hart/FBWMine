@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="FBW_Minecraft/FBW_Minecraft.vcxproj" Id="b0e0621b-b427-4581-8461-db0988278a3e" />
+  <Project Path="Loader/Loader.vcxproj" Id="ec1b4093-aa67-4911-90d1-13379abbbd71" />
+  <Project Path="Packer/Packer.vcxproj" Id="19434d55-1e3d-4938-8f58-8632374ef12a" />
+</Solution>

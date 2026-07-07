@@ -1,0 +1,9 @@
+
+block_minecraft_globe            _   block_minecraft_globe.jpg
+block_minecraft_globe_inner            _   block_minecraft_globe_inner.jpg
+block_minecraft_globe_o1            _   globe_outside_1.jpg
+block_minecraft_container            _   block_minecraft_container.jpg
+block_minecraft_container_boring     _   block_minecraft_container_boring.jpg
+block_minecraft_sky _ sky.jpg
+block_minecraft_world _ world.jpg
+block_minecraft_world_border _ world_border.jpg
