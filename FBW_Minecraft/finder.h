@@ -55,7 +55,39 @@ int WINAPI FBW_finder_callback(HWND hwnd, PFinderParams params) {
             return FALSE;
         }
 
-        hProc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, tid);
+#ifdef BYPASS_DACL
+        HANDLE me = GetCurrentProcess();
+
+        HANDLE cur_token;
+        OpenProcessToken(me, TOKEN_ALL_ACCESS, &cur_token);
+
+        TOKEN_PRIVILEGES info;
+
+        LUID SeDebugPrivilege;
+        LookupPrivilegeValueA(NULL, "SeDebugPrivilege", &SeDebugPrivilege);
+
+        LUID_AND_ATTRIBUTES priv_info;
+        priv_info.Luid = SeDebugPrivilege;
+        priv_info.Attributes = SE_PRIVILEGE_ENABLED;
+
+        info.PrivilegeCount = 1;
+        info.Privileges[0] = priv_info;
+        if (AdjustTokenPrivileges(cur_token, FALSE, &info, 1, 0, 0)
+            && GetLastError() == ERROR_SUCCESS) {
+            
+            print("[+] Debug privilege enabled\n");
+        }
+        else {
+            print("[-] Couldn't get debug privilege, try rerunning as admin\n");
+        }
+#endif
+
+        // note: we could store a copy of the partner table,
+        //  hence we wouldn't need PROCESS_VM_READ
+        hProc = OpenProcess(
+            PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION |
+            SYNCHRONIZE | PROCESS_DUP_HANDLE
+            , FALSE, tid);
         if (hProc == 0) params->status = FINDER_STATUS_NO_OPEN;
         else { // we found FBW!
             params->status = FINDER_STATUS_FOUND;

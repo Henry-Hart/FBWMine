@@ -6,6 +6,8 @@ local t = string.rep("\0", 4096)
 local block_ids = {}
 local block_ids_set = {}
 
+-- to sync with FBWMine version
+local LUA_VERSION = 0
 
 function p.comm(o1, o2, o3)
 
@@ -39,17 +41,32 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
     if string.byte(t, 1) == 0 then
         
         local e = string.byte(t, 2)
+        local wanted_lua_version = string.byte(t, 3)
+        if wanted_lua_version < LUA_VERSION then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xffffffYour FBWMine.exe needs updating^!"
+            )
+            create_rect("XAR_RAINBOW_FLOWER_SOLID", 7, 7, 7, 9, 9, 7)
+            return
+        elseif wanted_lua_version > LUA_VERSION then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xffffffYour LUA files for this mod need updating^!"
+            )
+            create_rect("XAR_RAINBOW_FLOWER_SOLID", 7, 7, 7, 9, 9, 7)
+            return
+        end
 
         local ring_msg =  "You can fly up to the top to find ^xff00ffPink Rings^!, " .. 
             "which will take you to the world exit"
             --"The ^x0000ffBlue Rings^! won't take you anywhere useful right now"
             --"The ^x0000ffBlue Rings^! will teleport you to spawn"
         
-        local to_load_msg = "If you want to visit this chunk, you first need to travel to " ..
+        local base_to_load_msg = "If you want to visit this chunk, you first need to travel to " ..
                 "^xffffff" .. tostring(msg_x) .. ",^! " ..
                 "^xffffff" .. tostring(msg_y) .. ",^! " ..
-                "^xffffff" .. tostring(msg_z) .. "^!" ..
-                " in Minecraft to load it.\n\n"
+                "^xffffff" .. tostring(msg_z) .. "^!"
+        
+        local to_load_msg = base_to_load_msg .. " in Minecraft to load it.\n\n"
 
         if e == 0 then
             add_bent_s(8,8,8,"bent_base_txt", "^xff0000FBWMine isn't connected :(^!\n\n" ..
@@ -63,7 +80,8 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
             )
             create_rect("XAR_SOLID_BORING_CONCRETE_ORANGE_X", 7, 7, 7, 9, 9, 7)
         elseif e == 2 then
-            add_bent_s(8,8,8,"bent_base_txt", "^xffff00The region containing this chunk didn't load in time^!\n\n" ..
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xffff00The region containing this chunk didn't load in time^!\n\n" ..
                 "If you wait a second (literally) and then ^xffffffsave^! and ^xffffffload^!, " ..
                 "this chunk should spawn in. Remember, for safety, unless you know where you are, " ..
                 "you should move out of this chunk to avoid ^xff0000getting stuck^! in a block!\n\n" ..
@@ -104,6 +122,38 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
             set_pos(8, 9, 7, "XAR_SOLID_BORING_GATO_YELLOW")
             set_pos(7, 8, 7, "XAR_SOLID_BORING_GATO_YELLOW")
             set_pos(9, 8, 7, "XAR_SOLID_BORING_GATO_YELLOW")
+        elseif e == 7 then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xffff00This chunk was generated in an older version of Minecraft^!\n\n" ..
+                base_to_load_msg ..
+                " ^x00ffffin a newer version of Minecraft (1.13+)^! to load it.\n\n" ..
+                ring_msg
+            )
+            create_rect("XAR_DAN_HOUSE_BLOCK_THICK_WOOD_FLOOR", 7, 7, 7, 9, 9, 7)
+        
+        -- errors you will basically never get
+        elseif e == 8 then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xff0000This chunk is in an invalid format^!\n\n" ..
+                ring_msg
+            )
+            create_rect("XAR_SOLID_BORING_DECO_1", 7, 7, 7, 9, 9, 7)
+        elseif e == 9 then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xff0000This chunk is too big^!\n\n" ..
+                ring_msg
+            )
+            create_rect("XAR_SOLID_BORING_DECO_1", 7, 7, 7, 9, 9, 7)
+            set_pos(7, 7, 7, "XAR_SOLID_BORING_MUSHROOM_RED")
+            set_pos(9, 9, 7, "XAR_SOLID_BORING_MUSHROOM_RED")
+        elseif e == 10 then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xff0000This chunk is weirdly compressed^!\n\n" ..
+                ring_msg
+            )
+            create_rect("XAR_SOLID_BORING_DECO_1", 7, 7, 7, 9, 9, 7)
+            set_pos(9, 7, 7, "XAR_SOLID_BORING_MUSHROOM_YELLOW")
+            set_pos(7, 9, 7, "XAR_SOLID_BORING_MUSHROOM_YELLOW")
         end
 
         return

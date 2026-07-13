@@ -241,6 +241,14 @@ int get_block_in_world(char* str, int* bounds) {
 
 void banner() {
 	//setlocale(LC_ALL, ".UTF8");
+
+	DWORD mode;
+	if (!GetConsoleMode(stdout, &mode) ||
+		!SetConsoleMode(stdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+	) {
+		printf("[-] Setting console output mode failed (%L)", GetLastError());
+	}
+
 	SetConsoleOutputCP(CP_UTF8);
 	print(
 		"\033[0;93m███████╗██████╗ ██╗    ██╗\033[0;96m███╗   ███╗██╗███╗   ██╗███████╗\n"

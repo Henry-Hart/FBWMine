@@ -39,7 +39,7 @@
 #define MODE_PALETTE 3
 #define MODE_NORMAL 4
 
-#define DETECT_LEVEL ctx->nbt[5] != 'v' // for older minecraft versions
+#define DETECT_LEVEL ctx->nbt[4] == 'v' // for older minecraft versions
 #define DETECT_INCOMPLETE_STATUS ctx->nbt[14] != 'l'
 #define DETECT_STATUS ctx->nbt[2] == 'S' // not needed
 #define DETECT_SECTIONS ctx->nbt[3] == 'e'
@@ -560,5 +560,8 @@ void invalidate_chunk(PChunkContext ctx, int error_code) {
 	for (int i = 0; i < MAX_SUBCHUNKS; i++) {
 
 		chunk_base[i * BLOCKS_PER_SUBCHUNK + 1] = error_code;
+
+		// ensure we have the right lua files
+		chunk_base[i * BLOCKS_PER_SUBCHUNK + 2] = VERSION;
 	}
 }

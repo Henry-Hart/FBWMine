@@ -63,14 +63,14 @@ int get_config(PConfigData conf) {
 	HMODULE me = GetModuleHandleA(NULL);
 	DWORD length = GetModuleFileNameA(me, path, MAX_PATH);
 	if (!length) {
-		printf("[Config] GetModuleFileNameA failed (%L)", GetLastError());
+		error_print("[CONFIG]", "GetModuleFileNameA");
 		return CONFIG_OTHER_ERROR;
 	}
 
 	// set base directory to be current directory so local paths always work
 	local_file_path(path, length, "");
 	if (!SetCurrentDirectoryA(path)) {
-		printf("[Config] SetCurrentDirectoryA failed (%L)", GetLastError());
+		error_print("[CONFIG]", "SetCurrentDirectoryA");
 		return CONFIG_OTHER_ERROR;
 	}
 
@@ -108,14 +108,14 @@ int get_config(PConfigData conf) {
 	}
 
 	if (token_i < 2) {
-		printf("[Config] No readable data found!\n");
+		printf("[CONFIG] No readable data found!\n");
 		return CONFIG_BAD_BLOCKS;
 	}
 
 	PConfigToken tokens = malloc((token_i + 3) * sizeof(ConfigToken)); // 3 end tokens
 	char* token_data = malloc(token_data_i + token_i + 1); // 1 extra null byte
 	if (!tokens || !token_data) {
-		printf("[Config] malloc failed!\n");
+		error_print("[CONFIG]", "malloc");
 		return CONFIG_BAD_BLOCKS;
 	}
 	int num_tokens = token_i;
@@ -125,7 +125,7 @@ int get_config(PConfigData conf) {
 	char** block_table = calloc(1, (token_i / 2 + 1) * sizeof(char*)); // guess + 1 empty start value
 
 	if (!palette || !block_table) {
-		printf("[Config] malloc failed!\n");
+		error_print("[CONFIG]", "malloc");
 		return CONFIG_BAD_BLOCKS;
 	}
 	palette[0].name = token_data; // points to what will be a null byte
@@ -225,7 +225,7 @@ int get_config(PConfigData conf) {
 		DWORD i = add_to_block_table(block_table, token2.data);
 		//printf("%s ~~> %L\n", token2.data, i);
 		if (i >= MAX_BLOCKS) {
-			printf("[Config] Too many (>250) unique FBW blocks specified!\n");
+			printf("[CONFIG] Too many (>250) unique FBW blocks specified!\n");
 			return CONFIG_BAD_BLOCKS;
 		}
 		insert_into_palette(palette, palette_size++, token1.data, i);
@@ -233,14 +233,14 @@ int get_config(PConfigData conf) {
 	}
 
 	if (extra_text_lines)
-		printf("[Config] Warning: ignored %d line(s) with too many names\n", extra_text_lines);
+		printf("[CONFIG] Warning: ignored %d line(s) with too many names\n", extra_text_lines);
 	if (not_enough_names)
-		printf("[Config] Warning: ignored %d line(s) with too few names\n", not_enough_names);
+		printf("[CONFIG] Warning: ignored %d line(s) with too few names\n", not_enough_names);
 	if (ignored_defaults > 0)
-		printf("[Config] Warning: ignored %d line(s) which set a default block\n", ignored_defaults);
+		printf("[CONFIG] Warning: ignored %d line(s) which set a default block\n", ignored_defaults);
 
 	if (default_id == -1) {
-		printf("[Config] Error: default block not set!\n");
+		printf("[CONFIG] Error: default block not set!\n");
 		return CONFIG_BAD_BLOCKS;
 	}
 
@@ -253,7 +253,7 @@ int get_config(PConfigData conf) {
 	BYTE* mapping_arr = malloc(palette_size);
 	char** opt_block_table = malloc(block_table_len * sizeof(char*));
 	if (!palette_arr || !mapping_arr || !opt_block_table) {
-		printf("[Config] malloc failed!\n");
+		error_print("[CONFIG]", "malloc");
 	}
 
 	for (int i = 0; i < palette_size; i++) {
@@ -348,7 +348,7 @@ char* get_fbw_path(PConfigData conf, char* fbw_txt_path) {
 	// + 1 for null byte
 	char* fbw_path = malloc(MAX_PATH + 1);
 	if (!fbw_path) {
-		printf("[CONFIG] malloc failed!\n");
+		error_print("[CONFIG]", "malloc");
 		return 0;
 	}
 

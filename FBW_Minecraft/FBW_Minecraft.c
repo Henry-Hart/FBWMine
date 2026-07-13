@@ -23,7 +23,15 @@ MAYBE TODO:
 */
 
 //#define PACKED
+
+// extra output
 //#define DEBUG
+
+// getting round privilege issues
+// ^^^ will restructure this a bit later
+//#define BYPASS_DACL
+
+#define VERSION 0 // for syncing with lua files
 
 #include "nbt.h"
 #include "comm.h"
@@ -185,7 +193,7 @@ int _main() {
 
 		bad_chunks[i] = malloc(4096);
 		if (!bad_chunks[i]) {
-			printf("malloc failed!\n");
+			error_print("[INIT]", "malloc");
 			return 1;
 		}
 
@@ -210,6 +218,11 @@ int write_mod_file(PConfigData conf) {
 	char saved = conf->fbw_path[length - 25];
 	conf->fbw_path[length - 25] = 0;
 
+#ifdef DEBUG
+	printf("FBW path: %s\n", conf->fbw_path);
+	printf("mod name: %s\n", conf->mod_name);
+#endif
+
 	char mod_file_path[MAX_PATH * 2 + 100]; // over approx
 	sprintf(mod_file_path,
 		"%s\\Input\\Packages\\%s\\WorldNodes\\Helpers\\fbwmine_data.lua",
@@ -218,10 +231,15 @@ int write_mod_file(PConfigData conf) {
 
 	conf->fbw_path[length - 25] = saved; // reset fbw_path
 
-	HANDLE hLuaFile = CreateFileA(mod_file_path, FILE_ALL_ACCESS, 
-		0, 0, CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, 0);
+	HANDLE hLuaFile = CreateFileA(mod_file_path, GENERIC_WRITE, 
+		0, 0, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 	if (hLuaFile == INVALID_HANDLE_VALUE) {
 		printf("[-] Opening mod lua file failed\n");
+
+#ifdef DEBUG
+		printf("File path: %s\n", mod_file_path);
+		printf("Last error: %L\n", GetLastError());
+#endif
 		return 0;
 	}
 
@@ -318,11 +336,6 @@ BOOL init_regions_and_load_spawn(z, x) {
 		return 0;
 	}
 
-	//wait_and_load_region_from_coords(0, 0);
-	//wait_and_load_region_from_coords(0, -1);
-	//wait_and_load_region_from_coords(-1, 0);
-	//wait_and_load_region_from_coords(-1, -1);
-
 	InitializeSRWLock(&center_chunk_srw);
 	center_chunk_waiting = FALSE;
 	
@@ -339,7 +352,7 @@ void load_thread(int* coords) {
 HANDLE create_load_thread(int region_x, int region_z, PRegionInfo region_info) {
 	int* coords = malloc(8); // could be pre-allocated
 	if (!coords) {
-		printf("malloc failed!\n");
+		error_print("[LOAD THREAD]", "malloc");
 		return 0;
 	}
 	coords[0] = region_x;
@@ -618,18 +631,30 @@ int get_chunk(BYTE* data, BYTE* palette_map, int i, PRegionAllocContext rctx,
 
 	if (compression_type != COMPRESSION_ZLIB) {
 		printf("Compression isn't zlib! %L\n", compression_type);
+
+		// 10 = non-zlib compression
+		invalidate_chunk(ctx, 10);
+
 		return 0;
 	}
 
 	if (size == 0 || size == 1) {
 		printf("Chunk has no data!\n");
-		// TODO: return 0 ???
+
+		// 8 = invalid minecraft format in some way
+		invalidate_chunk(ctx, 8);
+
+		return 0;
 	}
 
 	DWORD nbt_max_size = 0x100000;
 	void* nbt = malloc(nbt_max_size); // 1MB for now; LOOK AT GZIP
 	if (uncompress(nbt, &nbt_max_size, chunk + 5, size - 1) != Z_OK) {
 		printf("NBT buffer too small!\n", nbt);// buffer at: %p\n", nbt);
+
+		// 9 = chunk too large (over 1MB)
+		invalidate_chunk(ctx, 9);
+
 		return 0;
 		//MessageBoxA(0, "asd", "asd", 0);
 	}
@@ -651,6 +676,10 @@ int get_chunk(BYTE* data, BYTE* palette_map, int i, PRegionAllocContext rctx,
 
 	if ((DWORD)ctx->nbt - (DWORD)org_nbt != nbt_max_size) {
 		printf("Didn't consume all of NBT!\n");
+
+		// 8 = invalid minecraft format in some way
+		invalidate_chunk(ctx, 8);
+
 		return 0;
 	}
 
@@ -702,15 +731,6 @@ int alloc_4_regions(PRegionAllocContext rctx, PRegionAllocInfo rinfo) { // ~400M
 int process_worker_msg(PWorkerMsg pw, DWORD read, DWORD create_id,
     HANDLE proc, DWORD* base, HANDLE sem, LPCRITICAL_SECTION pcs) {
 
-    if (read == 0) {
-        printf("Pipe closed!\n");
-        return 1;
-    }
-    else if (read != sizeof(WorkerMsg)) {
-        printf("Incomplete read!\n");
-        return 1;
-    }
-
     WorkerMsg w = *pw;
     //printf("Got worker input\n");
 
@@ -725,7 +745,7 @@ int process_worker_msg(PWorkerMsg pw, DWORD read, DWORD create_id,
         if (!DuplicateHandle(proc, w.create_msg.event, GetCurrentProcess(),
             &pLocalEvent, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
 
-            printf("DuplicateHandleA failed (%L)\n", GetLastError());
+			error_print("[PARTNER INIT]", "DuplicateHandleA");
             return 1;
         }
 
@@ -747,11 +767,11 @@ int process_worker_msg(PWorkerMsg pw, DWORD read, DWORD create_id,
         SetEvent(pLocalEvent);
     }
     else if (w.type == REMOVE_MSG) {
-        printf("unexpected message\n");
+        printf("[SERVER] unexpected message\n");
         //remove_table_entry(proc, base, w.remove_msg.tid);
     }
     else {
-        printf("unexpected message\n");
+        printf("[SERVER] unexpected message\n");
     }
     return 0;
 }
@@ -765,20 +785,21 @@ int comm_test(HANDLE proc, PFBWVersion v) {
 	//printf("Remote input handle: %p\n", pOutputRemote);
 
 	if (!add_inline_partner_hook(proc, pOutputRemote, v)) {
-		printf("WriteProcessMemory failed\n");
+		error_print("[INIT]", "WriteProcessMemory");
+		return 1;
 	}
 	printf("Added inline partner hook!\n");
 
 	HANDLE* threads = (HANDLE*)calloc(MAX_TABLE_ENTRIES, sizeof(HANDLE));
 	DWORD* tids = (DWORD*)calloc(MAX_TABLE_ENTRIES, sizeof(DWORD));
 	if (!threads || !tids) {
-		printf("calloc failed!\n");
+		error_print("[INIT]", "calloc");
 		return 1;
 	}
 
 	HANDLE sem = CreateSemaphoreA(NULL, MAX_TABLE_ENTRIES, MAX_TABLE_ENTRIES, NULL);
 	if (!sem) {
-		printf("CreateSemaphoreA failed!\n");
+		error_print("[INIT]", "CreateSemaphoreA");
 		return 1;
 	}
 
@@ -803,26 +824,24 @@ int comm_test(HANDLE proc, PFBWVersion v) {
 	while (1) {
 
 		if (!ReadFile(pInput, &w, sizeof(WorkerMsg), &read, NULL)) {
-			printf("ReadFile failed!\n");
+			error_print("[SERVER]", "ReadFile");
 			return 1;
 		}
 
 		if (read == 0) {
-			printf("Main pipe closed!\n");
+			printf("[SERVER] Main pipe closed!\n");
 			return 1;
 		}
 
 		if (read != sizeof(WorkerMsg)) {
-			printf("Read incomplete data!\n");
+			printf("[SERVER] Read incomplete data!\n");
 			return 1;
 		}
 
 		if (w.type == CREATE_MSG && !base) base = w.create_msg.base;
 
 		process_worker_msg(&w, read, next_param_id++, proc, base, sem, &cs);
-
 	}
-	printf("ReadFile failed (%L)\n", GetLastError());
 
 	return 0;
 }

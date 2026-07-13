@@ -207,7 +207,7 @@ void sprintf(char* buff, const char* format, ...) {
 	va_end(args);
 }
 
-int stdfuncs_init() {
+void stdfuncs_init() {
 	proc_heap = GetProcessHeap();
 	stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 }
@@ -359,7 +359,7 @@ void printf(const char* format, ...) {
 // error msg cannot be longer than 500 chars
 void error_print(const char* module_name, const char* func) {
 	DWORD err = GetLastError();
-	printf("%s %s failed with error %L", module_name, func, err);
+	printf("%s %s failed with error %L\n", module_name, func, err);
 }
 
 // these functions actually have to be fast
