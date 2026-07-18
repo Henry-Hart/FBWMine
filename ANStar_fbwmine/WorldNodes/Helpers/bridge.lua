@@ -9,6 +9,9 @@ local block_ids_set = {}
 -- to sync with FBWMine version
 local LUA_VERSION = 0
 
+-- to block on first load
+local first_update = 1
+
 function p.comm(o1, o2, o3)
 
     height = o3
@@ -30,8 +33,16 @@ function p.comm(o1, o2, o3)
         return false
     end
 
-    set_blue_type_up(t, o1, height, o2, 0, 0)
+    set_blue_type_up(t, o1, height, o2, 0, first_update)
+    if first_update == 1 then first_update = 0 end
     return true
+end
+
+function p.comm_preload()
+
+    -- preload spawn coords message
+    set_blue_type_up(t, 0, 0, 0, 1, 0)
+    if first_update == 1 then first_update = 0 end
 end
 
 -- generate a chunk from t
@@ -57,7 +68,8 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
         end
 
         local ring_msg =  "You can fly up to the top to find ^xff00ffPink Rings^!, " .. 
-            "which will take you to the world exit"
+            --"which will take you to the world exit"
+            "which will bring you to the large Yellow Room of this Small Yellow Flower"
             --"The ^x0000ffBlue Rings^! won't take you anywhere useful right now"
             --"The ^x0000ffBlue Rings^! will teleport you to spawn"
         
@@ -70,6 +82,8 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
 
         if e == 0 then
             add_bent_s(8,8,8,"bent_base_txt", "^xff0000FBWMine isn't connected :(^!\n\n" ..
+                "If you forgot to open FBWMine, first close and reopen FBW to the main menu " ..
+                "THEN start FBWMine." ..
                 ring_msg
             )
             create_rect("XAR_SOLID_BORING_CONCRETE_RED_X", 7, 7, 7, 9, 9, 7)
@@ -154,8 +168,23 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
             create_rect("XAR_SOLID_BORING_DECO_1", 7, 7, 7, 9, 9, 7)
             set_pos(9, 7, 7, "XAR_SOLID_BORING_MUSHROOM_YELLOW")
             set_pos(7, 9, 7, "XAR_SOLID_BORING_MUSHROOM_YELLOW")
+        
+        -- a specific error for thrashing
+        elseif e == 11 then
+            add_bent_s(8,8,8,"bent_base_txt", 
+                "^xff0000Thrashing detected^!\n" ..
+                "^xffff00Too many regions tried to load at the same time^!\n\n" ..
+                "If you wait a few seconds and then ^xffffffsave^! and ^xffffffload^!, " ..
+                "this chunk should spawn in. Remember, for safety, unless you know where you are, " ..
+                "you should move out of this chunk to avoid ^xff0000getting stuck^! in a block!\n\n" ..
+                ring_msg
+            )
+            create_rect("XAR_SOLID_BORING_GATO_LIGHT_BLUE", 7, 7, 7, 9, 9, 7)
+            set_pos(8, 7, 7, "XAR_SOLID_BORING_CONCRETE_RED_X")
+            set_pos(8, 9, 7, "XAR_SOLID_BORING_CONCRETE_RED_X")
+            set_pos(7, 8, 7, "XAR_SOLID_BORING_CONCRETE_RED_X")
+            set_pos(9, 8, 7, "XAR_SOLID_BORING_CONCRETE_RED_X")
         end
-
         return
     end
 

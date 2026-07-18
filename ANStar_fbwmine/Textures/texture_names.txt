@@ -7,3 +7,4 @@ block_minecraft_container_boring     _   block_minecraft_container_boring.jpg
 block_minecraft_sky _ sky.jpg
 block_minecraft_world _ world.jpg
 block_minecraft_world_border _ world_border.jpg
+minecraft_meme _ mine_welcome.jpg

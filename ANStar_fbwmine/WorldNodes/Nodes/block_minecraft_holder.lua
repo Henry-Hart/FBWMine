@@ -76,6 +76,13 @@ function p.__main()
     set_pos(15, 14, 1, "XAR_EMPTY_BORING")
     set_pos(7, 9, 1, "XAR_ASCEND_SIMPLE")
 
+    --add_bent(5, 5, 1, "bent_env_var_open_door")
+
     create_rect("XAR_ANTI_PLUG", 7, 7, 1, 8, 8, 1)
 
+    --create_rect("XAR_TOLL_DOOR_SOLID", 7, 7, 15, 8, 8, 15)
+
+    -- load spawn regions
+    -- this HAS to be done here NOT the globe
+    bridge.comm_preload()
 end

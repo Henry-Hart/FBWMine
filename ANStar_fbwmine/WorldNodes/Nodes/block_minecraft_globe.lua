@@ -44,10 +44,15 @@ function p.__main()
     create_rect("XAR_DAN_HOUSE_BLOCK_THICK_WOOD_FLOOR", 6, 6, 0, 9, 9, 0)
     create_rect("XAR_EMPTY_BORING", 7, 7, 0, 8, 8, 1)
 
-    add_bent(2,2,2,"bent_base_ring_pink_dest")
+    add_bent_s(13, 3, 12, "bent_base_txt", 
+        "This ^x0000ffBlue Ring^! will take you deep inside the " ..
+        "^xffff00Inner Globe^! in the center of this room.\n\n" ..
+        "To exit the ^xffff00Inner Globe^!, fly up to find ^xff00ffPink Rings^! when inside.\n\n" ..
+        "If you get ^xff0000stuck^!, restart ^xffffffFBW^! without starting ^xffffffFBWMine^!."
+    )
+    add_bent(13, 3, 11, "bent_base_ring_blue")
 
-    add_bent(8,8,9,"bent_base_ring_blue")
-    set_pos(8,8,8, "minecraft_globe_inner")
+    set_pos(8, 8, 8, "minecraft_globe_inner")
 
     -- so the player can exit
     add_bent(2, 13, 2, "bent_base_waypoint_out_only")
