@@ -76,6 +76,8 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
+# include the FBW objects!
+!ANStar_fbwmine/**/*.obj
 *.iobj
 *.pch
 *.pdb
