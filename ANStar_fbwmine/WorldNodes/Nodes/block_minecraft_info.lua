@@ -42,7 +42,7 @@ function p.__main()
     )
 
     add_bent_s(14, 11, 5, "bent_base_txt", 
-        "Double click ^xffffffFBWMine^! (the copy) to start running it.\n\n" ..
+        "Double click ^xffffffFBWMine^! to start running it.\n\n" ..
         "^xffffffFBWMine^! will now appear in a terminal.\n\n" ..
         "If the last message in the terminal is " ..
         "^x00ff00Press ENTER to exit...^! then something went wrong. " ..
@@ -53,8 +53,8 @@ function p.__main()
     )
 
     add_bent_s(14, 11, 3, "bent_base_txt", 
-        "Assuming ^xffffffFBWMine^! is working, you can now make your way to the " ..
-        "^xffff00World Globe^! on the second-highest pillar.\n\n"
+        "Assuming ^xffffffFBWMine^! is working, ^xffffffsave^! and ^xffffffload^! then " ..
+        "make your way to the ^xffff00World Globe^! on the second-highest pillar!\n\n"
     )
 
     -- yellow column
@@ -97,7 +97,8 @@ function p.__main()
     )
 
     add_bent_s(14, 7, 3, "bent_base_txt", 
-        "Your world will now be inside the ^xffff00World Globe^!, go check it out!\n\n" ..
+        "Your world will now be inside the ^xffff00World Globe^!, so " ..
+        "^xffffffsave^! and ^xffffffload^! then go check it out!\n\n" ..
         "If you want to change any of the blocks, you can open ^xffffffblocks.txt^! " ..
         "which explains how to do this. There is a list of Minecraft block ids and " ..
         "XAR block ids in ^xffffffid_lists^!.\n\n" ..
@@ -114,9 +115,9 @@ function p.__main()
     add_bent_s(14, 3, 10, "bent_base_txt", 
         "Please let me (^xff0000AntiNeutronicStar^!) know about any bugs / feedback " ..
         "on discord.\n\n\n\n" ..
-        string.rep("^xffff00~^!^x00ffff~^!^xff00ff~^!", 16) .. "\n" ..
-        "Thanks to ^xff0000thatgujo^! for helping test extensively.\n" ..
-        string.rep("^xffff00~^!^x00ffff~^!^xff00ff~^!", 16)
+        string.rep("^xffff00~^!^x00ffff~^!^xff00ff~^!", 16) .. "^xffff00~^!" .. "\n" .. 
+        "Thanks to ^xff0000thatguyjo^! for helping test extensively.\n" ..
+        string.rep("^xffff00~^!^x00ffff~^!^xff00ff~^!", 16) .. "^xffff00~^!"
     )
 
 end

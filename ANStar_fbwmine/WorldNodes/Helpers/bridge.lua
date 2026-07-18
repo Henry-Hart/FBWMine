@@ -42,7 +42,9 @@ function p.comm_preload()
 
     -- preload spawn coords message
     set_blue_type_up(t, 0, 0, 0, 1, 0)
-    if first_update == 1 then first_update = 0 end
+
+    --this doesn't count as a first update just for safety
+    --if first_update == 1 then first_update = 0 end
 end
 
 -- generate a chunk from t

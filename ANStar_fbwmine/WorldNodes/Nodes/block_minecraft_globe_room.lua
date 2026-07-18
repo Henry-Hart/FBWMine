@@ -40,6 +40,9 @@ function p.__main()
     set_pos(6, 9, 8, "block_minecraft_holder")
 
     add_bent_s(6, 6, 9, "bent_base_waypoint", "World Globe Room")
+    --add_bent(6, 6, 9, "bent_base_ring_pink_dest")
 
     set_pos(9, 6, 7, "block_minecraft_info")
+
+    add_bent(14, 1, 1, "bent_base_ring_pink_dest")
 end
