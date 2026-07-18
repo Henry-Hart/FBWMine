@@ -6,13 +6,19 @@
 # minecraft_block_name		fbw_block_name		#
 # ^^^ without "minecraft:"      ^^^ in set_pos format	#
 #							#
-# add 'default' to the end of the line you want it...	#
-# ...to be the default block				#
+# add 'default' to the end of the line you want to	#
+#  specify default block				#
 #							#
-# thing* means match any blocks whose names start...	#
-# ... with thing (this is the only supported * syntax)	#
+# thing* means match any blocks whose names start	#
+#  with thing (this is the only supported * syntax)	#
 #							#
 #########################################################
+
+# this is green grass
+grass* XAR_SOLID_BORING_GREEN
+
+# do you ever feel that grass should be pink? If so, uncomment the following line!
+#grass* XAR_SOLID_BORING_DECO_1_PURPLE_1
 
 # for monuments
 sponge XAR_SOLID_BORING_CONCRETE_YELLOW_X

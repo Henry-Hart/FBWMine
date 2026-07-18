@@ -45,10 +45,11 @@ MAYBE TODO:
 #define BAD_CHUNK_LOADING 1
 #define BAD_CHUNK_BLOCKED 2
 #define BAD_CHUNK_HOLLOW 3
+#define BAD_CHUNK_THRASHING 4
 
 static RegionAllocContext rctx;
 static RegionAllocInfo rinfo;
-static BYTE* bad_chunks[4];
+static BYTE* bad_chunks[5];
 static int center_chunk[2];
 static SRWLOCK center_chunk_srw;
 static BOOL center_chunk_waiting;
@@ -64,6 +65,9 @@ static char* global_region_path;
 static int(__cdecl* uncompress)(
 	unsigned char* dest, unsigned long* destLen,
 	const unsigned char* source, unsigned long sourceLen);
+
+static int global_spawn_x;
+static int global_spawn_z;
 
 /*int recover() { // TODO: make less bad etc.
 
@@ -127,6 +131,8 @@ int _main() {
 	SetConsoleTitleA("FBW <---> Minecraft");
 	banner();
 
+	if (!maybe_try_enable_privs()) return 1;
+
 	// get config
 	ConfigData conf;
 	if (!get_good_config(&conf)) return 1;
@@ -185,11 +191,20 @@ int _main() {
 	}
 	
 	// init regions
-	init_regions_and_load_spawn(conf.spawn_coords[1], conf.spawn_coords[0]);
+	int block_x = conf.spawn_coords[0];
+	int block_z = conf.spawn_coords[1];
+
+	// save spawn CHUNK coords
+	global_spawn_x = (block_x < 0 ? block_x - 15 : block_x) / 16; // negative fix
+	global_spawn_z = (block_z < 0 ? block_z - 15 : block_z) / 16;
+
+	// TODO: modify maps that used old version
+	// TODO: use global chunk coords
+	init_regions_and_load_spawn(global_spawn_z, global_spawn_x);
 
 	// allocate memory for bad chunks
 	// TODO: could do in one go
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 5; i++) {
 
 		bad_chunks[i] = malloc(4096);
 		if (!bad_chunks[i]) {
@@ -202,6 +217,7 @@ int _main() {
 		bad_chunks[i][1] = i + 1;
 	}
 	bad_chunks[3][1] = 6; // for chunks in hollow regions
+	bad_chunks[4][1] = 11; // for thrashing
 
 	HANDLE hCurProc = find_fbw(conf.fbw_path);
 	if (!hCurProc) return 1;
@@ -232,7 +248,7 @@ int write_mod_file(PConfigData conf) {
 	conf->fbw_path[length - 25] = saved; // reset fbw_path
 
 	HANDLE hLuaFile = CreateFileA(mod_file_path, GENERIC_WRITE, 
-		0, 0, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
+		0, 0, CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 	if (hLuaFile == INVALID_HANDLE_VALUE) {
 		printf("[-] Opening mod lua file failed\n");
 
@@ -289,14 +305,21 @@ int write_mod_file(PConfigData conf) {
 BOOL init_regions_and_load_spawn(z, x) {
 
 	// spawn coords
-	int blocks_per_region_xz_axis = CHUNKS_PER_REGION_XZ_AXIS * 16;
+	/*int blocks_per_region_xz_axis = CHUNKS_PER_REGION_XZ_AXIS * 16;
 	int region_x = (x < 0 ? x - blocks_per_region_xz_axis + 1 : x) / blocks_per_region_xz_axis;
 	int region_z = (z < 0 ? z - blocks_per_region_xz_axis + 1 : z) / blocks_per_region_xz_axis;
 
-	int chunk_x = -blocks_per_region_xz_axis * region_x + x;
-	int chunk_z = -blocks_per_region_xz_axis * region_z + z;
+	int chunk_x = -CHUNKS_PER_REGION_XZ_AXIS * region_x + x;
+	int chunk_z = -CHUNKS_PER_REGION_XZ_AXIS * region_z + z;
 
-	// TODO: store these globally or something
+	int center_x = region_x + (chunk_x > 16 ? 1 : 0);
+	int center_z = region_z + (chunk_z > 16 ? 1 : 0);*/
+	int region_x = (x < 0 ? x - CHUNKS_PER_REGION_XZ_AXIS + 1 : x) / CHUNKS_PER_REGION_XZ_AXIS; // negative fix
+	int region_z = (z < 0 ? z - CHUNKS_PER_REGION_XZ_AXIS + 1 : z) / CHUNKS_PER_REGION_XZ_AXIS;
+
+	int chunk_x = -CHUNKS_PER_REGION_XZ_AXIS * region_x + x;
+	int chunk_z = -CHUNKS_PER_REGION_XZ_AXIS * region_z + z;
+
 	int center_x = region_x + (chunk_x > 16 ? 1 : 0);
 	int center_z = region_z + (chunk_z > 16 ? 1 : 0);
 	center_chunk[0] = center_x;
@@ -350,6 +373,7 @@ void load_thread(int* coords) {
 
 // TODO: region load failed message or something
 HANDLE create_load_thread(int region_x, int region_z, PRegionInfo region_info) {
+
 	int* coords = malloc(8); // could be pre-allocated
 	if (!coords) {
 		error_print("[LOAD THREAD]", "malloc");
@@ -418,7 +442,15 @@ void wait_and_load_region_from_coords(int x, int z) {
 }
 
 // TODO: call with partner ID + struct with some relevant info in
-int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int block) {
+int wait_and_write_subchunk(UpdateMsg* msg, HANDLE proc, BYTE* addr, int block, int repeated) {
+
+	// TODO: could instantly set the event when spawn_preload_msg is 1
+	BOOL spawn_preload_msg = msg->param4 == 1 && msg->param5 == 0;
+	int x = spawn_preload_msg ? global_spawn_x : msg->param1;
+	int y = msg->param2;
+	int z = spawn_preload_msg ? global_spawn_z : msg->param3;
+
+	if (spawn_preload_msg) print("Preemptively checking regions around spawnpoint...\n");
 
 	int region_x = (x < 0 ? x - CHUNKS_PER_REGION_XZ_AXIS + 1 : x) / CHUNKS_PER_REGION_XZ_AXIS; // negative fix
 	int region_z = (z < 0 ? z - CHUNKS_PER_REGION_XZ_AXIS + 1 : z) / CHUNKS_PER_REGION_XZ_AXIS;
@@ -429,7 +461,8 @@ int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int bl
 	int chunk_x = -CHUNKS_PER_REGION_XZ_AXIS * region_x + x;
 	int chunk_z = -CHUNKS_PER_REGION_XZ_AXIS * region_z + z;
 
-	//printf("chunk %d %d from region %d %d requested xyz=%d %d %d\n", chunk_x, chunk_z, region_x, region_z, x, y, z);
+	//printf("chunk %d %d from region %d %d requested xyz=%d %d %d\n", 
+	// chunk_x, chunk_z, region_x, region_z, x, y, z);
 
 	int slot = ((region_x & 1) << 1) + (region_z & 1);
 	BYTE* region_data = rctx.regions[slot];
@@ -447,7 +480,7 @@ int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int bl
 		) {
 		// TODO: block
 		//printf("<would block here>\n");
-		chunk_base = bad_chunks[BAD_CHUNK_LOADING];
+		chunk_base = bad_chunks[repeated ? BAD_CHUNK_THRASHING : BAD_CHUNK_LOADING];
 	} else if (region_info->status == REGION_STATUS_EMPTY //||
 		//region_info->x != region_x ||
 		//region_info->z != region_z
@@ -472,7 +505,7 @@ int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int bl
 
 	// always wait if we are blocking and the region is still loading
 	int force_wait = chunk_base[0] == 0 && chunk_base[1] == 2 && block;
-	if (force_wait || !center_chunk_waiting) {
+	if (force_wait || spawn_preload_msg || !center_chunk_waiting) {
 		AcquireSRWLockShared(&center_chunk_srw);
 
 		int xdiff = region_x * CHUNKS_PER_REGION_XZ_AXIS
@@ -526,7 +559,8 @@ int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int bl
 								printf("Partner wait failed with error %L\n", GetLastError());
 							}
 
-							waited = 1;
+							// no need to do another cycle if it's a preemptive load
+							waited = spawn_preload_msg ? 0 : 1;
 
 							// TODO: could do stuff here e.g. below + more cases
 							/*AcquireSRWLockShared(&region_info->srw);
@@ -542,7 +576,7 @@ int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int bl
 								) {
 
 								// could have specific thrashing message
-								chunk_base = bad_chunks[BAD_CHUNK_LOADING];
+								chunk_base = bad_chunks[BAD_CHUNK_THRASHING];
 							}*/
 						}
 					}
@@ -556,7 +590,8 @@ int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int bl
 		else ReleaseSRWLockShared(&center_chunk_srw);
 	}
 
-	if(waited) return 1; // do another call to the function
+	// only do another call if this isn't a preload (to make preloads fast FBW side)
+	if(waited) return !spawn_preload_msg; // do another call to the function
 
 	if (!WriteProcessMemory(proc, addr, chunk_base, 4096, NULL)) {
 		printf("WriteProcessMemory to chunk failed (%L)", GetLastError());

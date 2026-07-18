@@ -97,7 +97,7 @@ typedef struct _WorkerMsg {
 
 void partner_thread(PPartnerParams params);
 void monitor(PSingleDeathMonitorParams params);
-int wait_and_write_subchunk(int x, int y, int z, HANDLE proc, BYTE* addr, int block); // external
+int wait_and_write_subchunk(UpdateMsg* msg, HANDLE proc, BYTE* addr, int block, int repeated); // external
 void wait_and_load_region_from_coords(int x, int z); // external
 HANDLE create_load_thread(int region_x, int region_z, PRegionInfo region_info); // external
 
@@ -165,7 +165,8 @@ HANDLE create_partner_death_pair(HANDLE proc, HANDLE event,
 
 void partner_thread(PPartnerParams params) {
 
-    int first_update = 1; // threads can block on the first load
+    // TODO: could also do what we were doing and OR it
+    //int first_update = 1; // threads can block on the first load
     WorkerMsg w;
     DWORD read;
     while (ReadFile(params->pInput, &w, sizeof(WorkerMsg), &read, NULL)) {
@@ -183,8 +184,9 @@ void partner_thread(PPartnerParams params) {
 
         if (w.type == UPDATE_MSG) {
 
-            //printf("[PARTNER %d] x=%d y=%d z=%d \n", params->id, w.update_msg.param1,
-            //        w.update_msg.param2, w.update_msg.param3);
+            //printf("[PARTNER %d] x=%d y=%d z=%d p4=%d p5=%d\n", params->id, 
+            //    w.update_msg.param1, w.update_msg.param2, w.update_msg.param3, 
+            //    w.update_msg.param4, w.update_msg.param5);
 
             /*if (!first_update) {
 
@@ -195,9 +197,14 @@ void partner_thread(PPartnerParams params) {
                 }
             }*/
 
+            // handle the first update tracking LUA side
+            int first_update = w.update_msg.param5 == 1;
+            //if (first_update) printf("FIRST UPDATE %d\n", params->id);
+            //first_update = 0;
+
             // TODO: move this out of here and check wait_and_write_subchunk
-            int repeat = wait_and_write_subchunk(w.update_msg.param1, w.update_msg.param2,
-                w.update_msg.param3, params->proc, w.update_msg.output, first_update);
+            int repeat = wait_and_write_subchunk(&w.update_msg, 
+                params->proc, w.update_msg.output, first_update, 0);
 
             // do the call again in the case of a force load
             if (repeat) { // TODO: maybe include thrashing message
@@ -210,11 +217,11 @@ void partner_thread(PPartnerParams params) {
                 //  or block on a short timeout (which is dodgy, but technically thread 0
                 //  can also load chunks, it just is very rare to do anything other than
                 //  the initial load tree thing)
-                wait_and_write_subchunk(w.update_msg.param1, w.update_msg.param2,
-                    w.update_msg.param3, params->proc, w.update_msg.output, 0);
+                wait_and_write_subchunk(&w.update_msg,
+                    params->proc, w.update_msg.output, first_update, 1);
             }
 
-            if (first_update) first_update = 0;
+            //if (first_update) first_update = 0;
 
             // release thread
             SetEvent(params->event);

@@ -1,0 +1,6 @@
+!!! IT IS NOT RECOMMENDED TO EDIT THIS FILE DIRECTLY !!!
+ANStar_fbwmine
+fortress
+-276
+60
+207

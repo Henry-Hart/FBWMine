@@ -204,7 +204,7 @@ typedef struct _FBWVersionEntry {
 PFBWVersion get_fbw_version(ULONG* hash_data, PFBWVersionEntry version_table, int len) {
 	
 	//for (int i = 0; i < 4; i++) {
-	//	printf("Hash: %lu\n", hash_data[i]);
+	//	printf("Hash: %L\n", hash_data[i]);
 	//}
 
 	for (int i = 0; i < len; i++) { // length of version_table
@@ -254,10 +254,79 @@ void banner() {
 		"\033[0;93m███████╗██████╗ ██╗    ██╗\033[0;96m███╗   ███╗██╗███╗   ██╗███████╗\n"
 		"\033[0;93m██╔════╝██╔══██╗██║    ██║\033[0;96m████╗ ████║██║████╗  ██║██╔════╝\n"
 		"\033[0;93m█████╗  ██████╔╝██║ █╗ ██║\033[0;96m██╔████╔██║██║██╔██╗ ██║█████╗\n"
-		"\033[0;93m██╔══╝  ██╔══██╗██║███╗██║\033[0;96m██║╚██╔╝██║██║██║╚██╗██║██╔══╝"
-		"\033[0;91m    by @AntiNeutronicPlasma\n"
+		"\033[0;93m██╔══╝  ██╔══██╗██║███╗██║\033[0;96m██║╚██╔╝██║██║██║╚██╗██║██╔══╝\n"
+		//"\033[0;91m    by @AntiNeutronicPlasma\n"
 		"\033[0;93m██║     ██████╔╝╚███╔███╔╝\033[0;96m██║ ╚═╝ ██║██║██║ ╚████║███████╗\n"
+		//"\033[0;92m  version 0.1.0\n"
 		"\033[0;93m╚═╝     ╚═════╝  ╚══╝╚══╝ \033[0;96m╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚══════╝\n"
+		"\033[0;91mby @AntiNeutronicPlasma\033[0;92m version 0.1.0\n"
 		"\033[0m"
 	);
+}
+
+int enable_priv(char* priv_name, HANDLE cur_token) {
+
+	TOKEN_PRIVILEGES info;
+
+	LUID SeDebugPrivilege;
+	LookupPrivilegeValueA(NULL, priv_name, &SeDebugPrivilege);
+
+	LUID_AND_ATTRIBUTES priv_info;
+	priv_info.Luid = SeDebugPrivilege;
+	priv_info.Attributes = SE_PRIVILEGE_ENABLED;
+
+	info.PrivilegeCount = 1;
+	info.Privileges[0] = priv_info;
+	return AdjustTokenPrivileges(cur_token, FALSE, &info, 1, 0, 0)
+		&& GetLastError() == ERROR_SUCCESS;
+}
+
+// could just be void; if malloc fails it will break later too
+int maybe_try_enable_privs() {
+	HANDLE me = GetCurrentProcess();
+
+	HANDLE cur_token;
+	OpenProcessToken(me, TOKEN_ALL_ACCESS, &cur_token);
+
+	// get integrity
+	DWORD integrity = SECURITY_MANDATORY_UNTRUSTED_RID;
+	DWORD size;
+	if (!GetTokenInformation(cur_token, TokenIntegrityLevel, NULL, NULL, &size)) {
+		TOKEN_MANDATORY_LABEL* label = malloc(size);
+		if (!label) {
+			// could be something else
+			error_print("[INIT]", "malloc");
+			return 0;
+		}
+
+		DWORD written; // unused
+		if (GetTokenInformation(cur_token, TokenIntegrityLevel, label, size, &written)) {
+			PSID sid = label->Label.Sid;
+			integrity = *GetSidSubAuthority(sid, *GetSidSubAuthorityCount(sid) - 1);
+		}
+	}
+	if (integrity >= SECURITY_MANDATORY_HIGH_RID) {
+		printf("[*] Running as admin; activating superpowers...\n");
+	}
+	else return 1;
+
+	const char* privs[] = {
+		"Debug", "Backup"
+	};
+	for (int i = 0; i < ARRAYSIZE(privs); i++) {
+		char priv_name[50];
+		sprintf(priv_name, "Se%sPrivilege", privs[i]);
+		if (enable_priv(priv_name, cur_token)) {
+
+			printf("[+] %s privilege enabled\n", privs[i]);
+		}
+		else {
+			char lowercase_priv[50];
+			strcpy(lowercase_priv, privs[i]);
+			lowercase_priv[0] += 'a' - 'A';
+			printf("[-] Couldn't get %s privilege\n", lowercase_priv);
+		}
+	}
+
+	return 1;
 }
