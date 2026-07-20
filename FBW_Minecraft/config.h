@@ -483,8 +483,8 @@ BOOL get_good_config(PConfigData conf) {
 		conf->minecraft_region_path = region_folder;
 
 		int bounds[][2] = {
-			{-30000000, 30000000},
-			{-64, 320}, // max y is 320; maybe let users go a bit above this?
+			{-29999983, 29999983},
+			{-64, 350}, // max y is 319; we let users go a bit above that
 		};
 
 		conf->spawn_coords[0] = get_block_in_world("Please enter your spawn x: ", bounds[0]);

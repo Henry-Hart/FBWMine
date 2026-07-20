@@ -28,10 +28,10 @@ If you want to just test the program, then do the first step of **How to use**, 
 - If your Antivirus starts throwing around false accusations, just use `FBW_Minecraft.exe` instead. It does the same thing as `FBWMine.exe`, but is larger and has no icon.
 
 **Unmodified `FBW_Minecraft.exe` SHA512:**
-> afad486b5e48153843047c6002e69e9306e64253735da311f89eb36774c5ac1a3b185829039239147786e1d099deb588ec7d56292a23454f59c23749a62a5469
+> 6fe831138118f00599a6966f367f04b2c14486852a5de9988637f989a72e1342d62d8d89d2ed80772e3fb182c21bd99cb1ff9777daeba4108279ea07877b71be
 
 **Unmodified `FBWMine.exe` SHA512:**
-> fcb529c72ce1c2e209119a436e7859d414dbd9e5949309b8c19b433d812a2b4383995b56e1ccee34b2be1de1f32d7d70200af238eb98f691df4c23e5a681c378
+> 74e27b308f99f6a66c4ee1b6376ce51b6f59feddbf02d6759ab9b4c7b3d67f95dff5ff73772cce96cc51eb4874a1e16cde38c6c12af7bd612d3c479c2c0b4855
 
 
 ## What I'm looking to add

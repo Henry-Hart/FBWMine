@@ -40,7 +40,7 @@ function p.__main()
     total_z = total_z - 48
     
     -- world border check
-    if -29999983 > total_x or total_x > 29999983 or -29999983 > total_y or total_y > 29999983 then
+    if -29999984 > total_x or total_x > 29999983 or -29999984 > total_y or total_y > 29999983 then
         create_rect("block_minecraft_world_border", 0, 0, 0, 15, 15, 15)
     elseif bridge.comm(total_x//16, total_y//16, total_z//16 + 4) then
 
