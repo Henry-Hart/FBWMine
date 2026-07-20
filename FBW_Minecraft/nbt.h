@@ -205,7 +205,11 @@ void nbt_compound_track(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_
 			if (saved_mode == MODE_SECTION) {
 				if (sctx->saved_data) update_region(ctx, sctx, palette_map);
 				else fill_region(ctx, palette_map[0], sctx->subchunk_i); // TODO: this is probably wrong somehow
+
+				// this doesn't detect modded subchunks
+				//if (sctx->subchunk_i >= -4 && sctx->subchunk_i <= 19)
 				ctx->covered_subchunks |= 1 << (sctx->subchunk_i + 4);
+				
 			}
 
 			return; // end of compound nbt
@@ -213,6 +217,7 @@ void nbt_compound_track(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_
 		case NBT_Byte: {
 			DWORD step = get_2_bytes(ctx->nbt, 0);
 
+			// TODO: specify constant to add to subchunk index (for modded maps)
 			if (saved_mode == MODE_SECTION && DETECT_Y) sctx->subchunk_i = ctx->nbt[3];
 
 
@@ -340,7 +345,10 @@ void nbt_compound_track(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_
 
 void update_region(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_map) {
 
-	if (sctx->subchunk_i < -4 || sctx->subchunk_i > 19) return; // block invalid chunks
+	if (sctx->subchunk_i < -4 || sctx->subchunk_i > 19) {
+		//printf("[WARNING] subchunk %d detected (modded?)", sctx->subchunk_i);
+		return; // block invalid chunks
+	}
 
 	DWORD i = ctx->chunk_i * MAX_SUBCHUNKS + sctx->subchunk_i + 4;
 	BYTE* chunk_base = ctx->region_data + i * BLOCKS_PER_SUBCHUNK;
@@ -426,7 +434,10 @@ void update_region(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_map) 
 // fill a region with one block id
 void fill_region(PChunkContext ctx, BYTE id, char subchunk_i) {
 
-	if (subchunk_i < -4 || subchunk_i > 19) return; // block invalid chunks
+	if (subchunk_i < -4 || subchunk_i > 19) {
+		//printf("[WARNING] subchunk %d detected (modded?)", subchunk_i);
+		return; // block invalid chunks
+	}
 
 	DWORD i = ctx->chunk_i * MAX_SUBCHUNKS + subchunk_i + 4;
 

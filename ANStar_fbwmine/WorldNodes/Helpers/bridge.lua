@@ -71,7 +71,8 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
 
         local ring_msg =  "You can fly up to the top to find ^xff00ffPink Rings^!, " .. 
             --"which will take you to the world exit"
-            "which will bring you to the large Yellow Room of this Small Yellow Flower"
+            --"which will bring you to the large Yellow Room of this Small Yellow Flower"
+            "which will bring you just outside the ^xffff00World Globe^! you are currently in."
             --"The ^x0000ffBlue Rings^! won't take you anywhere useful right now"
             --"The ^x0000ffBlue Rings^! will teleport you to spawn"
         
@@ -85,7 +86,7 @@ function p.chunk_from_data(msg_x, msg_y, msg_z)
         if e == 0 then
             add_bent_s(8,8,8,"bent_base_txt", "^xff0000FBWMine isn't connected :(^!\n\n" ..
                 "If you forgot to open FBWMine, first close and reopen FBW to the main menu " ..
-                "THEN start FBWMine." ..
+                "THEN start FBWMine.\n\n" ..
                 ring_msg
             )
             create_rect("XAR_SOLID_BORING_CONCRETE_RED_X", 7, 7, 7, 9, 9, 7)
