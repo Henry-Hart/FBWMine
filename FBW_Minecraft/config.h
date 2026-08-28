@@ -429,11 +429,13 @@ BOOL get_good_config(PConfigData conf) {
 		{4191973557, 1997980744, 2116352146, 962159604,
 			0x00754A60, 0x00a5caec, 0x00a5ca43, "1.02.00 (beta 21/06/2026)"},
 		{1752542431, 2013162947, 1643136462, 1512156321,
-			0x00754C10, 0x00a76fbc, 0x00a76f13, "1.02.00 (beta 16/07/2026)" }
+			0x00754C10, 0x00a76fbc, 0x00a76f13, "1.02.00" },
+		{3288143391, 2800920748, 615942979, 3619040994,
+			0x0075AEA0, 0x00a8306c, 0x00a82fc3, "1.02.01 (beta 22/08/2026)" }
 	};
 	PFBWVersionEntry version_table = (PFBWVersionEntry)table_data;
-	int version_table_length = 3;
-
+	int version_table_length = 4;
+	
 	BOOL settings_bad = 0;
 	char settings_buff[MAX_PATH];
 	conf->settings_path = settings_buff;
