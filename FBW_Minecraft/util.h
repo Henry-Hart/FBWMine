@@ -68,12 +68,21 @@ void* read_file_extra(char* fileName, DWORD* read) {
 void* read_file(char* fileName, DWORD* read) {
 
 	// TODO: probably just do everything with wide strings or something
-	wchar_t wFileName[1024];
-	MultiByteToWideChar(CP_UTF8, 0, fileName, -1, wFileName, 1024); // ~ GPT
+	int nameSize = MultiByteToWideChar(CP_UTF8, 0, fileName, -1, 0, 0);
+	if (!nameSize) return 0; // conversion failed
+
+	wchar_t* wFileName = malloc(nameSize * 2 + 2);
+	if (!wFileName) return 0; // malloc failed
+
+	if (!MultiByteToWideChar(CP_UTF8, 0, fileName, -1, wFileName, nameSize)) {
+		// conversion failed, shouldn't happen
+		return 0;
+	}
 
 	void* f = CreateFileW(wFileName, GENERIC_READ, FILE_SHARE_READ, NULL,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
+	free(wFileName);
 
 	if (f == INVALID_HANDLE_VALUE) {
 

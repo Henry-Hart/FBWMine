@@ -1,4 +1,5 @@
 
+#define _CRT_SECURE_NO_WARNINGS
 #include <Windows.h>
 #include <stdio.h>
 //#include <zlib.h>
@@ -12,10 +13,10 @@
 
 void* read_file_extra(char* fileName, DWORD* read);
 void load(BYTE* compacted_pe);
-void WriteByteArray(HANDLE h, const char* name, const BYTE* data, 
-	DWORD size, DWORD expanded_size); // ~ GPT
+void prepare_loader_header(BYTE* bytes, DWORD size, DWORD expanded_size);
 
 #define PE_SIG_SIZE 4
+#define ADVANCE_STREAM(stream) stream = (char*)((DWORD)stream + strlen(stream));
 //#define printf(asd)
 
 typedef struct _SectionHeader {
@@ -50,6 +51,14 @@ int _main() {
 
 	// construct compacted data
 	CompactedImage ci;
+
+	// set current directory to be the right place
+	char my_path[MAX_PATH];
+	GetModuleFileNameA(NULL, my_path, MAX_PATH);
+	int i = strlen(my_path) + 1;
+	while (my_path[--i] != '\\') {}
+	my_path[i] = 0;
+	SetCurrentDirectoryA(my_path);
 
 	const char* path = ".\\FBW_Minecraft.exe";
 	DWORD bytes_read = 0;
@@ -201,56 +210,79 @@ int _main() {
 	CreateCompressor(COMPRESS_ALGORITHM_MSZIP, 0, &comp);
 	DWORD compressed_size = 0;
 	Compress(comp, out, alloc_size, buff2, buff2_size, &compressed_size);
-	
+
 
 	printf("Compressed size: %lu\n", compressed_size);
 
 	const char* out_path = "..\\Loader\\compacted_pe.h";
 
-	WriteByteArray(out_path, "compressed_pe", buff2, compressed_size, alloc_size);
+	//WriteByteArray(out_path, "compressed_pe", buff2, compressed_size, alloc_size);
+	prepare_loader_header(buff2, compressed_size, alloc_size);
 
 	return 0;
 }
 
-void WriteByteArray(const char* path, const char* name, 
-	const BYTE* data, DWORD size, DWORD expanded_size)
-{
+void prepare_loader_header(BYTE* bytes, DWORD size, DWORD expanded_size) {
 
-	HANDLE h = CreateFileA(
-		path,
-		GENERIC_WRITE,
-		0,
-		NULL,
-		CREATE_ALWAYS,
-		FILE_ATTRIBUTE_NORMAL,
-		NULL);
+	// open loader header
+	HANDLE header;
+	if ((header = CreateFileA("..\\Loader\\compacted_pe.h", 
+		GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)) == INVALID_HANDLE_VALUE) {
 
-	if (h == INVALID_HANDLE_VALUE)
-		return FALSE;
-
-	char buf[200];
-	DWORD written;
-
-	wsprintfA(buf, 
-		"#pragma code_seg(\".text\")\r\n__declspec(allocate(\".text\")) unsigned int "
-		"compacted_pe_size = %lu;\r\n__declspec(allocate(\".text\")) unsigned char %s[] = {\r\n    ",
-		expanded_size, name);
-	WriteFile(h, buf, lstrlenA(buf), &written, NULL);
-
-	// This was just GPT for speed
-	for (DWORD i = 0; i < size; i++)
-	{
-		wsprintfA(buf, "0x%02X", data[i]);
-		WriteFile(h, buf, lstrlenA(buf), &written, NULL);
-
-		if (i + 1 != size)
-			WriteFile(h, ", ", 2, &written, NULL);
-
-		if (((i + 1) & 15) == 0 && i + 1 != size)
-			WriteFile(h, "\r\n    ", 6, &written, NULL);
+		printf("Opening loader header failed :( %lu\n", GetLastError());
+		return;
 	}
 
-	WriteFile(h, "\r\n};\r\n", 6, &written, NULL);
+	// (over) allocate memory for buffer TODO: work out properly
+	char bytes_per_line = 12;
+	char* file_buf = malloc(300 + 7 * size + 7 * size / bytes_per_line);
+	if (!file_buf) {
+
+		printf("malloc failed :(\n");
+		return;
+	}
+
+	// pragma stuff + declarations
+	sprintf(file_buf,
+		"#pragma code_seg(\".text\")\r\n"
+		"__declspec(allocate(\".text\")) unsigned int compacted_pe_size = %lu;\r\n"
+		"__declspec(allocate(\".text\")) unsigned char compressed_pe[] = {\r\n    ",
+		expanded_size
+	);
+	char* org_file_buf = file_buf;
+	ADVANCE_STREAM(file_buf);
+
+	// lines of bytes
+	char line[100];
+	char j = 0;
+	for (int i = 0; i < size; i++) {
+
+		sprintf((DWORD)line + j * 6, "0x%02x, ", bytes[i]);
+
+		if (++j == bytes_per_line || i == size - 1) {
+
+			// print the line
+			line[j * 6 - 1] = 0;
+			sprintf(file_buf, "%s\r\n    ", line);
+			ADVANCE_STREAM(file_buf);
+			j = 0;
+		}
+	}
+
+	// closing bracket
+	file_buf[-7] = '\r';
+	file_buf[-6] = '\n';
+	file_buf[-5] = '}';
+	file_buf[-4] = ';';
+
+	// write to loader header
+	DWORD i_care_not;
+	if (!WriteFile(header, org_file_buf,
+		(DWORD)file_buf - (DWORD)org_file_buf - 3, &i_care_not, 0)) {
+
+		printf("Writing to loader header failed :( %lu\n", GetLastError());
+		return;
+	}
 }
 
 void* read_file_extra(char* fileName, DWORD* read) {

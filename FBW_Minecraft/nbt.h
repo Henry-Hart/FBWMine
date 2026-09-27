@@ -103,9 +103,7 @@ void update_region(PChunkContext ctx, PSubchunkContext sctx, BYTE* palette_map);
 void fill_region(PChunkContext ctx, BYTE id, char subchunk_i);
 void palette_update(char* str, DWORD size, DWORD i, BYTE* palette_map, PChunkContext ctx);
 int alloc_4_regions(PRegionAllocContext rctx, PRegionAllocInfo rinfo);
-int binary_search_strings(char* arr[], int count, char* target, int fail); // ~ GPT
-unsigned long long get_8_bytes(BYTE* data, DWORD i); // ~~ GPT
-int wildcard_strcmp(const char* a, const char* b); // ~~ GPT
+inline unsigned long long get_8_bytes(BYTE* data, DWORD i);
 
 // LIST: nbt [chunk_i palette_map] in_section
 // TODO: pass list index into compound tag
@@ -469,7 +467,7 @@ void palette_update(char* str, DWORD size, DWORD i, BYTE* palette_map, PChunkCon
 	BYTE saved = str[size];
 	str[size] = 0;
 
-	BYTE id = binary_search_strings(ctx->user_palette, ctx->user_palette_len,
+	BYTE id = fast_string_search(ctx->user_palette, ctx->user_palette_len,
 		str + 10, // skip "minecraft:"
 		ctx->default_palette_value // default value
 	);
@@ -477,62 +475,66 @@ void palette_update(char* str, DWORD size, DWORD i, BYTE* palette_map, PChunkCon
 	palette_map[i] = ctx->palette_secondary_translation[id];
 }
 
-int binary_search_strings(char* arr[], int count, char* target, int fail)
-{
+// n = length of arr; m = max length of string in arr
+// this is O(log(n) + m) as opposed to the more obvious O(log(n) * m)
+int fast_string_search(char* arr[], int count, char* target, int fail) {
+
 	int left = 0;
 	int right = count - 1;
+	int skip = 0; // length of common prefix of arr[left..right] + target
+	int skip2 = 0; // length of common prefix of arr[left..right]
 
-	while (left <= right)
-	{
-		int mid = left + (right - left) / 2;
-		int cmp = wildcard_strcmp(arr[mid], target); // using wildcard ones now
+	while (left <= right) {
 
-		if (cmp == 0)
-			return mid; // found
+		// find common prefixes of relevant arr items
+		char* left_str = arr[left];
+		char* right_str = arr[right];
+		while (left_str[skip2] == right_str[skip2] && left_str[skip2]) {
+			skip2++;
+		}
 
-		if (cmp < 0)
+		// bound full common prefix
+		if (skip > skip2) skip = skip2;
+
+		int mid = (left + right) / 2; // this is fine, arr isn't that big
+		char* mid_str = arr[mid];
+
+		// find first different character, or stop at null
+		while (mid_str[skip] && mid_str[skip] == target[skip]) skip++;
+
+		// classic binary search stuff
+		char mid_last = mid_str[skip];
+		char target_last = target[skip];
+
+		if (mid_last == target_last) { // arr[mid] == target
+			return mid;
+		}
+		if (mid_last == '*') { // treat as arr[mid] == target
+			return mid;
+		}
+		else if (mid_last < target_last) { // arr[mid] < target
 			left = mid + 1;
-		else
+		}
+		else { // arr[mid] > target
 			right = mid - 1;
+		}
+
+		// some characters don't match for ALL elements in bracket
+		if (skip2 > skip) return fail;
 	}
 
-	return fail; // not found
+	return fail;
 }
-
-// TODO: maybe eventually do the better comp
-inline int wildcard_strcmp(const char* a, const char* b) // ~~~~!
-{
-	for (;; ++a, ++b)
-	{
-		unsigned char ca = *a;
-		unsigned char cb = *b;
-
-		if (ca == '*' || cb == '*')
-			return 0; // treat wildcard as if both strings ended here
-
-		if (ca != cb)
-			return (ca < cb) ? -1 : 1;
-
-		if (ca == '\0')
-			return 0;
-	}
-}
-
-
 
 // TODO: unfuck 2's complement stuff here
 DWORD get_2_bytes(BYTE* data, DWORD i) {
 	DWORD v = data[i] * 0x100 + data[i + 1];
-	//if (v & 0x8000) // ~ GPT
-	//	v |= 0xFFFF0000;
 	return v;
 }
 
 DWORD get_3_bytes(BYTE* data, DWORD i) {
 	DWORD v = data[i] * 0x10000 +
 		data[i + 1] * 0x100 + data[i + 2];
-	//if (v & 0x800000) // ~ GPT
-	//	v |= 0xFF000000;
 	return v;
 }
 
@@ -542,16 +544,9 @@ DWORD get_4_bytes(BYTE* data, DWORD i) {
 }
 
 // this is fine
-unsigned long long get_8_bytes(BYTE* data, DWORD i)
+inline unsigned long long get_8_bytes(BYTE* data, DWORD i)
 {
-	return ((unsigned long long)data[i] << 56) |
-		((unsigned long long)data[i + 1] << 48) |
-		((unsigned long long)data[i + 2] << 40) |
-		((unsigned long long)data[i + 3] << 32) |
-		((unsigned long long)data[i + 4] << 24) |
-		((unsigned long long)data[i + 5] << 16) |
-		((unsigned long long)data[i + 6] << 8) |
-		((unsigned long long)data[i + 7]);
+	return _byteswap_uint64(*(unsigned long long*)(data + i));
 }
 
 void get_chunks(BYTE* data) {

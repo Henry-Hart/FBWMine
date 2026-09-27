@@ -11,6 +11,7 @@ TODO:
 	- tutorial (to be done in FBW)
 	- code cleanup
 	- WIDE STRING FILE HANDLING!!!!!!!!!!!!!!! (maybe kind of done mostly BUT CHECK)
+	- test recent changes (files more + number handling and console reading)
 
 MAYBE TODO:
 	- eliminate stdlib stuff (done, but make funcs better)

@@ -429,12 +429,18 @@ BOOL get_good_config(PConfigData conf) {
 		{4191973557, 1997980744, 2116352146, 962159604,
 			0x00754A60, 0x00a5caec, 0x00a5ca43, "1.02.00 (beta 21/06/2026)"},
 		{1752542431, 2013162947, 1643136462, 1512156321,
-			0x00754C10, 0x00a76fbc, 0x00a76f13, "1.02.00" },
+			0x00754C10, 0x00a76fbc, 0x00a76f13, "1.02.00"},
 		{3288143391, 2800920748, 615942979, 3619040994,
-			0x0075AEA0, 0x00a8306c, 0x00a82fc3, "1.02.01 (beta 22/08/2026)" }
+			0x0075AEA0, 0x00a8306c, 0x00a82fc3, "1.02.01 (beta 22/08/2026)"},
+		{1311401934, 3215506734, 31320262, 3003256519,
+			0x0075CA50, 0x00ab17bc, 0x00ab1713, "1.02.01 (beta 04/09/2026)"},
+		{2714146857, 3119293114, 3798285748, 4277590450,
+			0x00761B20, 0x00ab18fc, 0x00ab1853, "1.02.01 (ezno 05/09/2026)"},
+		{454404014, 615939194, 3946860039, 3768633384,
+			0x00761B70, 0x00ab18fc, 0x00ab1853, "1.02.01"}
 	};
 	PFBWVersionEntry version_table = (PFBWVersionEntry)table_data;
-	int version_table_length = 4;
+	int version_table_length = 7;
 	
 	BOOL settings_bad = 0;
 	char settings_buff[MAX_PATH];
@@ -609,7 +615,7 @@ DWORD add_to_block_table(char** table, char* str) {
 void insert_into_palette(PPaletteMapping palette, int size, char* str, DWORD i) {
 	palette[size].name = str; // need to do normal insertion sort to handle duplicates
 	palette[size].i = i;
-	for (int i = size - 1; i > 0; i--) {
+	for (int i = size; i > 0; i--) {
 		if (strcmp(palette[i - 1].name, palette[i].name) > 0) {
 
 			// swap name

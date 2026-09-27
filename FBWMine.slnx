@@ -7,4 +7,5 @@
   <Project Path="Loader/Loader.vcxproj" Id="ec1b4093-aa67-4911-90d1-13379abbbd71" />
   <Project Path="Packer/Packer.vcxproj" Id="19434d55-1e3d-4938-8f58-8632374ef12a" />
   <Project Path="Proxy/Proxy.vcxproj" Id="f37f891b-49a4-4574-95a0-b9a9539ab609" />
+  <Project Path="Zip/Zip.vcxproj" Id="992c5e15-865b-44ac-8e74-f20f759ffe07" />
 </Solution>

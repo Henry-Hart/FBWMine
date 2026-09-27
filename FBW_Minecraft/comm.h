@@ -130,6 +130,8 @@ HANDLE create_partner_death_pair(HANDLE proc, HANDLE event,
     }
 
     if (!make_IPC_pipe(proc, &params->pInput, &pOutput, &pOutputRemote)) return 0;
+    CloseHandle(pOutput); // we don't need this
+
     //printf("[NEW PARTNER %d] Remote input handle: %p\n", id, pOutputRemote);
     printf("[PARTNER CREATION] New partner %d!\n" , id);
 
@@ -231,7 +233,9 @@ void partner_thread(PPartnerParams params) {
         }
     }
 
-    free(params);
+    // should never be called
+    // TODO: work out the best way to do this
+    //free(params);
 }
 
 void add_table_entry(HANDLE proc, DWORD* base, DWORD tid, DWORD pipe_handle, DWORD event_handle) {
@@ -313,7 +317,7 @@ void monitor(PSingleDeathMonitorParams params) {
 
     // final cleanup
     CloseHandle(params->partner_params->event);
-    CloseHandle(params->partner_params->pInput);
+    CloseHandle(params->partner_params->pInput); // maybe do this earlier
     DuplicateHandle(params->partner_params->proc, params->pipe_output_remote,
         NULL, NULL, 0, FALSE, DUPLICATE_CLOSE_SOURCE);
 
@@ -325,9 +329,13 @@ void monitor(PSingleDeathMonitorParams params) {
     // signal there is a free space
     ReleaseSemaphore(params->sem, 1, NULL);
 
-    // TODO: close sem + cs handles
+    // TODO: check if anything else needs closing
+    // NOT pcs / sem
 
     printf("[DEATH] terminated and cleaned up ID=%d\n", params->partner_params->id);
+
+    free(params->partner_params);
+    free(params);
 }
 
 #define SET_BYTES_DWORD(bytes, i, v) *(DWORD*)((DWORD)bytes + i) = (DWORD)v;

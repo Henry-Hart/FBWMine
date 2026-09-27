@@ -274,26 +274,23 @@ int get_console_integer(int* num) {
 
 	HANDLE stdin = GetStdHandle(STD_INPUT_HANDLE);
 
-	char buf[32];
+	char buf[101];
 	DWORD read;
-	// ~ GPT
-	if (ReadConsoleA(stdin, buf, sizeof(buf) - 1, &read, NULL))
-	{
-		buf[read] = 0;
-
-		// remove carriage return + newline
-		if (read >= 2 && buf[read - 2] == '\r' && buf[read - 1] == '\n')
-		{
-			buf[read - 2] = 0;
-		}
-
-		if (read > 0) {
-			// Still need to check for INVALID_NUMBER (probably)
-			*num = small_atoi(buf);
-			return 1;
-		}
+	
+	// allow 100 chars to be read (e.g. spaces); TODO maybe more
+	if (!ReadConsoleA(stdin, buf, 100, &read, NULL)) return 0;
+	
+	// terminate + remove extra LF/CR
+	buf[read] = 0;
+	for (int i = 0; i < read; i++) {
+		if (buf[i] == '\n' || buf[i] == '\r') buf[i] = 0;
 	}
-	return 0;
+
+	// Don't need to check for INVALID_NUMBER, since in all cases
+	//  it is invalid (and also has > 9 digits)
+	*num = small_atoi(buf);
+
+	return num != INVALID_NUMBER; // not strictly necessary currently
 }
 
 
