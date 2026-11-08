@@ -45,7 +45,7 @@ function p.__main()
     elseif bridge.comm(total_x//16, total_y//16, total_z//16 + 4) then
 
         -- if we actually sent some data, load in a chunk
-        bridge.chunk_from_data(total_x, total_z, total_y)
+        bridge.chunk_from_data(total_y, total_z, total_x)
     end
 
     if good then -- we are in the right subchunk
