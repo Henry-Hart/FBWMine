@@ -106,7 +106,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <MergeSections>
       </MergeSections>
-      <AdditionalDependencies>msi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>msi.lib;urlmon.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <EntryPointSymbol>main</EntryPointSymbol>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>

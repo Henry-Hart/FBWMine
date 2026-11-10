@@ -210,6 +210,7 @@ void sprintf(char* buff, const char* format, ...) {
 void stdfuncs_init() {
 	proc_heap = GetProcessHeap();
 	stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	// TODO: maybe stdin here too
 }
 
 // _tolower is a WinAPI macro
@@ -268,29 +269,49 @@ int small_atoi(const char* str) {
 	return x * factor;
 }
 
-// TODO: complete
-// 1 if we actually read an integer
-int get_console_integer(int* num) {
+BOOL get_console_input_strip(char* buf, DWORD size, DWORD* out_read) {
 
 	HANDLE stdin = GetStdHandle(STD_INPUT_HANDLE);
 
-	char buf[101];
-	DWORD read;
-	
-	// allow 100 chars to be read (e.g. spaces); TODO maybe more
-	if (!ReadConsoleA(stdin, buf, 100, &read, NULL)) return 0;
-	
+	// read size chars
+	if (!ReadConsoleA(stdin, buf, size, out_read, NULL)) return 0;
+
 	// terminate + remove extra LF/CR
+	DWORD read = *out_read;
 	buf[read] = 0;
 	for (int i = 0; i < read; i++) {
 		if (buf[i] == '\n' || buf[i] == '\r') buf[i] = 0;
 	}
+
+	return 1;
+}
+
+// TODO: complete
+// 1 if we actually read an integer
+int get_console_integer(int* num) {
+
+	char buf[101];
+	DWORD read;
+
+	// allow 100 chars to be read (e.g. spaces); TODO maybe more
+	if (!get_console_input_strip(buf, 100, &read)) return 0;
 
 	// Don't need to check for INVALID_NUMBER, since in all cases
 	//  it is invalid (and also has > 9 digits)
 	*num = small_atoi(buf);
 
 	return num != INVALID_NUMBER; // not strictly necessary currently
+}
+
+BOOL get_console_yes() {
+
+	char buf[101];
+	DWORD read;
+
+	// TODO: pasting a large amount of text will cause multiple reads, so fix this
+	if (!get_console_input_strip(buf, 100, &read)) return 0;
+
+	return (buf[0] == 'Y' || buf[0] == 'y') && buf[1] == 0;
 }
 
 

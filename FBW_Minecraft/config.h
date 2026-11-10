@@ -36,6 +36,9 @@ typedef struct _ConfigData {
 	FBWVersion v;
 	int spawn_coords[3];
 	char* mod_name;
+	PFBWVersion version_table;
+	DWORD version_table_length;
+	char* fbwmine_base_url;
 } ConfigData, * PConfigData;
 
 typedef struct _ConfigToken {
@@ -51,6 +54,8 @@ typedef struct _PaletteMapping {
 void insert_into_palette(PPaletteMapping palette, int size, char* str, DWORD i);
 DWORD add_to_block_table(char** table, char* str);
 char* get_fbw_path(PConfigData conf, char* fbw_txt_path);
+void load_offsets(PConfigData conf, char* offsets_path);
+void load_offsets_autofix(PConfigData conf, char* offsets_path, BOOL skip);
 
 // TODO: work over MAX_PATH
 // also detect unicode and say this won't work
@@ -285,6 +290,12 @@ int get_config(PConfigData conf) {
 	if (!conf->fbw_path) return CONFIG_OTHER_ERROR;
 
 
+	// offsets.bin
+	local_file_path(path, length, "offsets.bin");
+	load_offsets_autofix(conf, path, 0);
+	if (!conf->version_table_length) return CONFIG_OTHER_ERROR;
+
+
 	// now for the much simpler settings.txt
 	// we also keep this one in memory
 	
@@ -418,31 +429,117 @@ char* get_fbw_path(PConfigData conf, char* fbw_txt_path) {
 	return fbw_path;
 }
 
+void load_offsets(PConfigData conf, char* offsets_path) {
+
+	// init
+	conf->version_table = 0;
+	conf->version_table_length = 0;
+
+	// read offsets.bin
+	DWORD data_size = 0;
+	char* data = read_file_extra(offsets_path, &data_size);
+
+#ifdef DEBUG
+	printf("offset load ERROR: %L\n", GetLastError());
+	if (!data) {
+		DWORD err = GetLastError();
+		if (err == ERROR_SHARING_VIOLATION || err == ERROR_LOCK_VIOLATION) {
+			printf("[*] offsets.bin is being used in another program, possibly AntiVirus scanning\n");
+			printf("[*] Trying to open it again for up to ~10 seconds");
+
+			for (int i = 0; i < 10; i++) {
+				print(".");
+				Sleep(1000);
+				data = read_file_extra(offsets_path, &data_size);
+				if (data) break;
+			}
+			print("\n");
+			if (!data) return;
+		}
+		else return;
+	}
+#endif DEBUG
+
+	// validate it
+	if (data_size < 8 || data_size > 0x1000) return; // too small/big
+	BYTE* data_end = (BYTE*)((DWORD)data + (DWORD)data_size - 1);
+	if (*data_end != 0) return; // malformed
+
+	DWORD* data_dwords = ((DWORD*)data);
+	DWORD version_number = data_dwords[0];
+	if (version_number == 0) return; // invalid version
+	if (version_number != 1) { // future version
+
+		printf("[!] Your FBWMine version is too old to load offsets.bin!\n");
+		printf("Get the latest version from Steam or GitHub: %s\n", conf->fbwmine_base_url);
+
+		conf->version_table = 1; // bypass the fail message but still fail
+		return;
+	}
+
+	DWORD table_len = data_dwords[1];
+	PFBWVersionEntry version_table = (PFBWVersionEntry)((DWORD)data + 8);
+
+	// hydrate strings
+	for (int i = 0; i < table_len; i++) {
+
+		if (&version_table[i] > data_end) return; // mismatched table length
+
+		version_table[i].v.name += (DWORD)data;
+
+		if (version_table[i].v.name > data_end) return; // malformed string refs
+	}
+
+	// output objects
+	conf->version_table = version_table;
+	conf->version_table_length = table_len;
+}
+
+void load_offsets_autofix(PConfigData conf, char* offsets_path, BOOL skip) {
+
+	if (!skip) {
+		load_offsets(conf, offsets_path);
+
+		// if everything is good, we don't need to do any fixing
+		if (conf->version_table) return;
+
+		printf("[!] Loading offsets.bin failed\n");
+	}
+
+	// auto-download new version on failure
+	printf("    |-> The latest version of this file is here: "
+		"%s_data\n", conf->fbwmine_base_url);
+	printf("    |-> Press [Y/y] and ENTER to download, or just ENTER to exit... ");
+
+	if (get_console_yes()) {
+
+		char data_url[MAX_PATH];
+		sprintf(data_url, "%s_data/raw/main/offsets.bin", conf->fbwmine_base_url);
+
+		DeleteFileA(offsets_path); // just in case
+		HRESULT res = URLDownloadToFileA(NULL, data_url, offsets_path, 0, NULL);
+
+		if (res == S_OK) {
+			printf("[+] Downloaded! Please restart FBWMine!\n");
+		}
+		else {
+			printf("[-] Download failed, try manually replacing the file\n");
+		}
+	}
+	else {
+		ExitProcess(1);
+	}
+	
+}
+
 // returns a good config or dies trying
 BOOL get_good_config(PConfigData conf) {
 
-	// supported FBW versions
-	// I could read this from a file but it's somewhat too much effort
-	void* table_data[][8] = {
-		{1297995149, 1554413479, 2699179619, 2001087517,
-			0x0074D990, 0x00a4448c, 0x00a443e3, "1.01.32"},
-		{4191973557, 1997980744, 2116352146, 962159604,
-			0x00754A60, 0x00a5caec, 0x00a5ca43, "1.02.00 (beta 21/06/2026)"},
-		{1752542431, 2013162947, 1643136462, 1512156321,
-			0x00754C10, 0x00a76fbc, 0x00a76f13, "1.02.00"},
-		{3288143391, 2800920748, 615942979, 3619040994,
-			0x0075AEA0, 0x00a8306c, 0x00a82fc3, "1.02.01 (beta 22/08/2026)"},
-		{1311401934, 3215506734, 31320262, 3003256519,
-			0x0075CA50, 0x00ab17bc, 0x00ab1713, "1.02.01 (beta 04/09/2026)"},
-		{2714146857, 3119293114, 3798285748, 4277590450,
-			0x00761B20, 0x00ab18fc, 0x00ab1853, "1.02.01 (ezno 05/09/2026)"},
-		{454404014, 615939194, 3946860039, 3768633384,
-			0x00761B70, 0x00ab18fc, 0x00ab1853, "1.02.01"},
-		{2647852751, 4155722032, 3281008127, 3444792588,
-			0x007E02D0, 0x00ae708c, 0x00ae6fe3, "1.02.02 (beta2 08/11/2026)"}
-	};
-	PFBWVersionEntry version_table = (PFBWVersionEntry)table_data;
-	int version_table_length = 8;
+	// TODO: maybe just try both steam workshop and non-steam workshop versions for folders
+
+	// I finally read the supported FBW versions from a file!
+
+	conf->fbwmine_base_url = "https://github.com/Henry-Hart/FBWMine";
 	
 	BOOL settings_bad = 0;
 	char settings_buff[MAX_PATH];
@@ -501,8 +598,10 @@ BOOL get_good_config(PConfigData conf) {
 		conf->spawn_coords[1] = get_block_in_world("Please enter your spawn y: ", bounds[1]);
 		conf->spawn_coords[2] = get_block_in_world("Please enter your spawn z: ", bounds[0]);
 
-		// for now, you can't configure mod_name from the terminal interface
+		// for now, you can't configure mod_name from the terminal interface (much)
+		printf("If you are using Steam Workshop: Press [Y/y] and ENTER... ");
 		strcpy(mod_name, "ANStar_fbwmine");
+		if (get_console_yes()) strcat(mod_name, "@3836158322");
 
 		// save mod_name
 		char* saved_mod_name = malloc(strlen(mod_name)+1);
@@ -549,12 +648,18 @@ BOOL get_good_config(PConfigData conf) {
 		printf("[!] Checking FBW version failed, try deleting fbw_path.txt\n");
 		return 0;
 	}
-	PFBWVersion v = get_fbw_version(hash.dwData, version_table, version_table_length);
+	PFBWVersion v = get_fbw_version(hash.dwData, conf->version_table, conf->version_table_length);
 	if (!v) {
 		printf("[!] FBW version not recognised\n");
 		printf("    |-> If you haven't updated your game: consider updating it\n");
 		printf("    |-> If you are on the beta branch or a newly released version, "
 			"this tool may not support it yet, DM @AntiNeutronicStar on discord\n");
+		printf("[*] NOTE: If you haven't already, you should try updating offsets.bin\n");
+
+		// modify the already saved and allocated settings path
+		local_file_path(conf->settings_path, strlen(conf->settings_path), "offsets.bin");
+		
+		load_offsets_autofix(conf, conf->settings_path, 1);
 		return 0;
 	}
 	else {
@@ -565,6 +670,10 @@ BOOL get_good_config(PConfigData conf) {
 	conf->v.lua_tointegerx_rel_offset = v->lua_tointegerx_rel_offset;
 	conf->v.lua_tolstring_rel_offset = v->lua_tolstring_rel_offset;
 	conf->v.name = 0; // needs heap-allocated buffer and we don't use it again
+	
+	// free heap (partially for security reasons)
+	// TODO: maybe write over first too
+	free((DWORD)conf->version_table - 8);
 
 	// save fbw path
 	char* saved_fbw_path = malloc(MAX_PATH + 1);

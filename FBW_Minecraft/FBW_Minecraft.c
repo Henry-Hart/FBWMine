@@ -252,6 +252,8 @@ int write_mod_file(PConfigData conf) {
 		0, 0, CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 	if (hLuaFile == INVALID_HANDLE_VALUE) {
 		printf("[-] Opening mod lua file failed\n");
+		printf("    |-> This could be because Steam Workshop uses a different mod folder\n");
+		printf("    |-> Try renaming/deleting settings.txt to remake it with new options\n");
 
 #ifdef DEBUG
 		printf("File path: %s\n", mod_file_path);
